@@ -11,6 +11,9 @@
 /* ************************************************************************** */
 
 #include "pipex.h"
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
 
 int	input_error()
 {
@@ -24,8 +27,8 @@ int	file_error()
 	return (1);
 }
 
-int	exec_error()
+void	exec_error(char *str)
 {
-	ft_putstr_fd("Execution error", 2);	
-	return (1);
+	perror(str);
+	exit(-1);
 }

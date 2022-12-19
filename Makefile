@@ -12,7 +12,7 @@
 
 MAKEFLAGS = --no-print-directory
 NAME = pipex
-CC = clang
+CC = gcc
 CFLAGS = -Wall -Wextra -Werror -g
 LIBFT = libft/
 SRCS =	error.c \

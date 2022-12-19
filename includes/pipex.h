@@ -19,8 +19,7 @@ typedef struct n_data
 {
 	int	current_cmd;
 	int	nb_cmd;
-	int	pipe1[2];
-//	int	pipe2[2];
+	int	p[2];
 	int	pid;
 	int	fd_input;
 	int	fd_output;
@@ -44,6 +43,6 @@ int ft_find_path(char **argv, char** envp, t_data *data);
 
 int input_error();
 int file_error();
-int exec_error();
+void exec_error(char *str);
 
 #endif

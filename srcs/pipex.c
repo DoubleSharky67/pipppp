@@ -18,105 +18,77 @@
 #include <stdio.h>
 #include <errno.h>
 
-void	ft_dup_rdwr(int fd_rd, int fd_wr)
+void	ft_output_pipe(char **argv, char **envp, t_data *data)
 {
-	dup2(fd_rd, 0);
-	dup2(fd_wr, 1);
+	dup2(data->fd_output, 1);
+	//---
+	close(data->fd_input);
+	close(data->fd_output);
+	close(data->p[0]);
+	//---
+	if (!ft_find_path(argv, envp, data))
+		exec_error("Command error");
+	execve(data->path, data->cmd, envp);	
 }
 
-void	ft_manage_fd(t_data *data)
+void	ft_pipe(char **argv, char **envp, t_data *data)
 {
-	if (data->current_cmd == 1)
-		ft_dup_rdwr(data->fd_input, data->pipe1[1]);
-	else if (data->current_cmd == data->nb_cmd)
-		ft_dup_rdwr(data->pipe1[0], data->fd_output);
-}
-
-void	ft_close_fd(t_data *data)
-{
-	close(data->pipe1[0]);
-	close(data->pipe1[1]);
-//	close(data->pipe2[0]);
-//	close(data->pipe2[1]);
-	if (data->fd_input != -1)	
-		close(data->fd_input);
-	if (data->fd_output != -1)	
-		close(data->fd_output);
-}
-
-int	ft_child_process(char **argv, char **envp, t_data *data)
-{
+	if (pipe(data->p) < 0)
+		exec_error("Pipe error");
 	data->pid = fork();
 	if (data->pid < 0)
-		return (0);
+		exec_error("Fork error");
 	if (!data->pid)
-	{ 
-		ft_putnbr_fd(data->current_cmd, 2); //f
-		ft_putstr_fd("\n", 2);
-		ft_manage_fd(data);
-		ft_close_fd(data);
+	{
+		close(data->p[0]);
+		dup2(data->p[1], 1);
+		//----
+		close(data->fd_input);
+		close(data->fd_output);
+		close(data->p[1]);
+		//----
 		if (!ft_find_path(argv, envp, data))
-			return (0);
-		//---------------------------
-		ft_putstr_fd("Path :", 2);
-		ft_putstr_fd(data->path, 2);
-		ft_putstr_fd("\n", 2);
-		ft_putstr_fd("Cmd :", 2);
-		ft_putstr_fd(data->cmd[0], 2);
-		ft_putstr_fd("\n", 2);
-		//----------------------------
+			exec_error("Command error");
 		execve(data->path, data->cmd, envp);
-		ft_putstr_fd("fefweeg", 2);  //wdqf
 	}
-	else 
-		waitpid(-1, NULL, 0);
-	return (1);
+	else
+	{
+		wait(NULL);
+		close(data->p[1]);
+		dup2(data->p[0], 0);
+		close(data->p[0]);
+	}
 }
 
-int	ft_pipe_loop(char **argv, char **envp, t_data *data)
-{
-	if (data->fd_input < 0)
-	{
-		perror("Wrong input file");
-		data->current_cmd++;
-	}
-	while (data->current_cmd <= data->nb_cmd)
-	{
-		ft_child_process(argv, envp, data);
-		ft_putnbr_fd(data->pid, 2); //ewg
-		write(2, "\n", 1);
-//		waitpid(data->pid, NULL, 0);
-		data->current_cmd++;
-	}
-	return (1);
-}
-
-int	ft_init_data(int argc, char **argv, t_data *data)
+int     ft_init_data(int argc, char **argv, t_data *data)
 {
 	data->nb_cmd = argc - 3;
 	data->current_cmd = 1;
 	data->fd_input = open(argv[1], O_RDONLY);
 	data->fd_output = open(argv[data->nb_cmd + 2]
 		, O_CREAT | O_RDWR | O_TRUNC, 0644);
-	if (data->fd_output < 0)
+	if (data->fd_input < 0 || data->fd_output < 0)
 		return (0);
-	if (pipe(data->pipe1) < 0)
-		return (0);
-//	if (pipe(data->pipe2) < 0);
-//		return (0);
-//	close(pipe2[0]);
 	return (1);
 }
+
+
 
 int	main(int argc, char **argv, char **envp)
 {
 	t_data	data;
 
-	if (argc != 5)
+	if (argc < 5)
 		return (input_error());
+	//ajouter heredoc
 	if (!ft_init_data(argc, argv, &data))
 		return (file_error());
-	ft_pipe_loop(argv, envp, &data);
-	ft_close_fd(&data);
+	dup2(data.fd_input, 0);
+	while (data.current_cmd < data.nb_cmd)
+	{
+		ft_pipe(argv, envp, &data);
+		data.current_cmd += 1;
+	}
+	ft_output_pipe(argv, envp, &data);
 	return (0);
 }
